@@ -61,6 +61,7 @@ type Session struct {
 	outgoingUniStreams *outgoingStreamsMap[*SendStream]
 	incomingDataFC     *incomingDataFlowController
 	outgoingDataFC     *outgoingDataFlowController
+	receivedMaxData    chan uint64
 }
 
 const (
@@ -88,6 +89,8 @@ func newSession(
 		flowControlEnabled:  fc.Enabled,
 		ctx:                 ctx,
 		capsuleQueueUpdated: make(chan struct{}, 1),
+		// buffered channel for received data
+		receivedMaxData: make(chan uint64, 1024),
 	}
 	if fc.Enabled {
 		c.incomingDataFC = newIncomingDataFlowController(0, fc.MaxIncomingData, func(maxData int64) {
@@ -147,6 +150,10 @@ func (s *Session) readFromConnectStream() {
 			s.closeWithError(c.ToSessionError(), nil)
 			return
 		case maxDataCapsule:
+			select {
+			case s.receivedMaxData <- uint64(c.MaximumData):
+			default:
+			}
 			if s.outgoingDataFC == nil {
 				continue
 			}
@@ -154,6 +161,7 @@ func (s *Session) readFromConnectStream() {
 				s.closeWithFlowControlError(err)
 				return
 			}
+
 		case maxStreamsBidiCapsule:
 			if !s.flowControlEnabled {
 				continue
@@ -447,6 +455,15 @@ func (s *Session) closeWithError(closeErr error, closeCapsule *closeSessionCapsu
 	s.str.CancelRead(code)
 	s.str.CancelWrite(code)
 	return true
+}
+
+func (s *Session) SendMaxData(maxData uint64) {
+	s.queueCapsule(maxDataCapsule{MaximumData: maxData})
+}
+
+// Clients access to received Data
+func (s *Session) ReceiveMaxData() <-chan uint64 {
+	return s.receivedMaxData
 }
 
 // SessionState returns the current state of the session
