@@ -94,7 +94,7 @@ func newSession(
 	}
 	if fc.Enabled {
 		c.incomingDataFC = newIncomingDataFlowController(0, fc.MaxIncomingData, func(maxData int64) {
-			c.queueCapsule(maxDataCapsule{MaximumData: uint64(maxData)})
+			c.queueCapsule(maxDataCapsule{MaximumData: uint64(maxData)}) // gets called when max data is raised. capsule management.
 		})
 		c.outgoingDataFC = newOutgoingDataFlowController(fc.MaxOutgoingData)
 	} else {
@@ -455,15 +455,6 @@ func (s *Session) closeWithError(closeErr error, closeCapsule *closeSessionCapsu
 	s.str.CancelRead(code)
 	s.str.CancelWrite(code)
 	return true
-}
-
-func (s *Session) SendMaxData(maxData uint64) {
-	s.queueCapsule(maxDataCapsule{MaximumData: maxData})
-}
-
-// Clients access to received Data
-func (s *Session) ReceiveMaxData() <-chan uint64 {
-	return s.receivedMaxData
 }
 
 // SessionState returns the current state of the session
