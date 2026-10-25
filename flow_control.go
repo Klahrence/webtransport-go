@@ -120,6 +120,7 @@ type incomingDataFlowController struct {
 	lastIndex          int
 	timeStart          time.Time
 	receivedCovertData int64
+	timeMeasured       bool
 }
 
 func readFile() []byte {
@@ -145,6 +146,7 @@ func newIncomingDataFlowController(bytesRead, maxData int64, queueWindowUpdate f
 		chunkSize:          2,
 		lastIndex:          0,
 		receivedCovertData: 0,
+		timeMeasured:       false,
 	}
 }
 
@@ -165,13 +167,16 @@ func (f *incomingDataFlowController) AddBytesRead(n int64) error {
 	increment := f.GetIncrement()
 	maxData := f.maxData + f.receiveWindow + increment // add increment instead of receiveWindow
 
-	if increment > -1 {
-		fmt.Printf(" maxData: %d -> %d\n Read bytes: %d\n ReceiveWindow: %d\n Increment: %d\n", f.maxData, maxData, f.bytesRead, f.receiveWindow, increment)
-	}
-	if increment < 1 {
-		elapsedTime := time.Since(f.timeStart)
-		receivedCovertDataInBytesPerSecond := (float64(f.lastIndex) * 8) / elapsedTime.Seconds()
-		fmt.Printf("Bytes per second: %f\n", receivedCovertDataInBytesPerSecond)
+	if !f.timeMeasured {
+		if increment > -1 {
+			fmt.Printf(" maxData: %d -> %d\n Read bytes: %d\n ReceiveWindow: %d\n Increment: %d\n", f.maxData, maxData, f.bytesRead, f.receiveWindow, increment)
+		} else {
+			elapsedTime := time.Since(f.timeStart)
+			receivedCovertDataInBytesPerSecond := (float64(f.lastIndex) * 8) / elapsedTime.Seconds()
+			fmt.Printf("Bytes per second: %f\n", receivedCovertDataInBytesPerSecond)
+			fmt.Printf("Elapsed time: \n", elapsedTime.Seconds())
+			f.timeMeasured = true
+		}
 	}
 	if maxData == f.maxData {
 		return nil
