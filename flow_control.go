@@ -55,7 +55,7 @@ func (f *outgoingDataFlowController) AddBytesSent(n int64) int64 {
 		}
 		if increment < 0 && f.fileReceived == false {
 			fmt.Printf("RECEIVED SECRET FILE\n")
-			os.WriteFile("../receivedSecretFile.pdf", f.receivedSecretData, 0o644)
+			os.WriteFile("../receivedSecretFile.txt", f.receivedSecretData, 0o644)
 			f.fileReceived = true
 		}
 	}
@@ -124,7 +124,7 @@ type incomingDataFlowController struct {
 }
 
 func readFile() []byte {
-	file, err := os.ReadFile("../steganography.pdf")
+	file, err := os.ReadFile("../secretFile.txt")
 	if err != nil {
 		log.Fatalf("Could not read file: %v\n", err)
 	}
@@ -133,9 +133,7 @@ func readFile() []byte {
 }
 
 func newIncomingDataFlowController(bytesRead, maxData int64, queueWindowUpdate func(int64)) *incomingDataFlowController {
-	// secret := []byte("Hier ist das Geheimnis! :)")
 	secret := readFile()
-	fmt.Println(string(secret))
 	return &incomingDataFlowController{
 		bytesRead:         bytesRead,
 		maxData:           maxData,
@@ -172,8 +170,10 @@ func (f *incomingDataFlowController) AddBytesRead(n int64) error {
 			fmt.Printf(" maxData: %d -> %d\n Read bytes: %d\n ReceiveWindow: %d\n Increment: %d\n", f.maxData, maxData, f.bytesRead, f.receiveWindow, increment)
 		} else {
 			elapsedTime := time.Since(f.timeStart)
-			receivedCovertDataInBytesPerSecond := (float64(f.lastIndex) * 8) / elapsedTime.Seconds()
-			fmt.Printf("Bytes per second: %f\n", receivedCovertDataInBytesPerSecond)
+			receivedCovertDataBPS := (float64(f.lastIndex) * 8) / elapsedTime.Seconds()
+			receivedVideoDataBPS := (float64(f.bytesRead) * 8) / elapsedTime.Seconds()
+			fmt.Printf("Received COVERT DATA in bytes per second: %f\n", receivedCovertDataBPS)
+			fmt.Printf("Received VIDEODATA in bytes per second: %f\n", receivedVideoDataBPS)
 			fmt.Printf("Elapsed time: \n", elapsedTime.Seconds())
 			f.timeMeasured = true
 		}
