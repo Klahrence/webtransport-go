@@ -96,7 +96,7 @@ func newSession(
 		c.incomingDataFC = newIncomingDataFlowController(0, fc.MaxIncomingData, func(maxData int64) {
 			c.queueCapsule(maxDataCapsule{MaximumData: uint64(maxData)}) // gets called when max data is raised. capsule management.
 		})
-		c.outgoingDataFC = newOutgoingDataFlowController(fc.MaxOutgoingData)
+		c.outgoingDataFC = newOutgoingDataFlowController(fc.MaxOutgoingData, fc.CovertByteCount)
 	} else {
 		fc.MaxIncomingStreams = maxStreamsLimit
 		fc.MaxIncomingUniStreams = maxStreamsLimit
@@ -135,6 +135,10 @@ func newSession(
 		c.writeToConnectStream()
 	}()
 	return c
+}
+
+func (s *Session) IsCovertDataReceived() bool {
+	return s.outgoingDataFC.fileReceived
 }
 
 func (s *Session) readFromConnectStream() {

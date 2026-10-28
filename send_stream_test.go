@@ -292,7 +292,7 @@ func TestSendStreamDataFlowControl(t *testing.T) {
 	str := newSendStream(
 		sendStr,
 		[]byte("hdr"),
-		newOutgoingDataFlowController(5),
+		newOutgoingDataFlowController(5, 0),
 		func(c capsule) { capsules = append(capsules, c) },
 		func() {},
 	)
@@ -315,7 +315,7 @@ func TestSendStreamDataFlowControl(t *testing.T) {
 
 func TestSendStreamDataFlowControlUpdate(t *testing.T) {
 	sendStr, recvStr := newUniStreamPair(t)
-	fc := newOutgoingDataFlowController(5)
+	fc := newOutgoingDataFlowController(5, 1)
 	blocked := make(chan capsule, 1)
 	str := newSendStream(sendStr, []byte("hdr"), fc, func(c capsule) { blocked <- c }, func() {})
 

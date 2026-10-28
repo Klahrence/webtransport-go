@@ -7,7 +7,7 @@ import (
 )
 
 func TestOutgoingDataFlowController(t *testing.T) {
-	fc := newOutgoingDataFlowController(10)
+	fc := newOutgoingDataFlowController(10, 1)
 	require.Equal(t, int64(4), fc.AddBytesSent(4))
 	blocked, maxData := fc.IsNewlyBlocked()
 	require.False(t, blocked)
@@ -41,7 +41,7 @@ func TestOutgoingDataFlowController(t *testing.T) {
 }
 
 func TestOutgoingDataFlowControllerBlockedAtZero(t *testing.T) {
-	fc := newOutgoingDataFlowController(0)
+	fc := newOutgoingDataFlowController(0, 1)
 
 	blocked, maxData := fc.IsNewlyBlocked()
 	require.True(t, blocked)

@@ -27,6 +27,9 @@ type Config struct {
 	// If negative, the setting is sent with a value of zero.
 	// Values larger than 2^62-1 are clipped to 2^62-1.
 	MaxIncomingData int64
+
+	// The size of bytes that are send with one raise of WT_MAX_DATA
+	CovertByteCount int
 }
 
 type sessionFlowControl struct {
@@ -38,6 +41,7 @@ type sessionFlowControl struct {
 	MaxOutgoingUniStreams uint64
 	MaxIncomingData       int64
 	MaxOutgoingData       int64
+	CovertByteCount       int
 }
 
 func streamLimit(limit int64) uint64 {
@@ -86,5 +90,6 @@ func (c Config) sessionFlowControl(remote *http3.Settings) sessionFlowControl {
 		MaxOutgoingUniStreams: peerSettings[settingsWebTransportInitialMaxStreamsUni],
 		MaxIncomingData:       dataLimit(c.MaxIncomingData),
 		MaxOutgoingData:       int64(peerSettings[settingsWebTransportInitialMaxData]),
+		CovertByteCount:       c.CovertByteCount,
 	}
 }

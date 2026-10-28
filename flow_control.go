@@ -26,7 +26,7 @@ type outgoingDataFlowController struct {
 	fileReceived       bool
 }
 
-func newOutgoingDataFlowController(maxData int64) *outgoingDataFlowController {
+func newOutgoingDataFlowController(maxData int64, chunkSize int) *outgoingDataFlowController {
 	return &outgoingDataFlowController{
 		maxData:       maxData,
 		lastBlockedAt: -1,
