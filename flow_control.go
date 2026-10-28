@@ -19,23 +19,21 @@ type outgoingDataFlowController struct {
 	lastBlockedAt int64
 	updated       chan struct{}
 
+	covertConfig       *CovertConfig
 	receivedSecretData []byte
-	chunkSize          int
-	initialMaxData     int64
 	previousMaxData    int64
 	fileReceived       bool
 }
 
-func newOutgoingDataFlowController(maxData int64, chunkSize int) *outgoingDataFlowController {
+func newOutgoingDataFlowController(covertConfig *CovertConfig) *outgoingDataFlowController {
 	return &outgoingDataFlowController{
-		maxData:       maxData,
+		maxData:       covertConfig.InitialMaxData,
 		lastBlockedAt: -1,
 		updated:       make(chan struct{}),
 
+		covertConfig:       covertConfig,
 		receivedSecretData: []byte(""),
-		chunkSize:          2,
-		previousMaxData:    maxData,
-		initialMaxData:     maxData,
+		previousMaxData:    covertConfig.InitialMaxData,
 		fileReceived:       false,
 	}
 }
@@ -45,8 +43,8 @@ func (f *outgoingDataFlowController) AddBytesSent(n int64) int64 {
 	defer f.mx.Unlock()
 
 	// detect maxData raises and trigger decode when there is a new value
-	if f.maxData > f.previousMaxData {
-		increment := f.maxData - f.previousMaxData - f.initialMaxData
+	if f.covertConfig.DoCovert && f.maxData > f.previousMaxData {
+		increment := f.maxData - f.previousMaxData - f.covertConfig.InitialMaxData
 		msg := fmt.Sprintf("maxData was raised from %d to %d\n increment is %d", f.previousMaxData, f.maxData, increment)
 		f.previousMaxData = f.maxData
 		if increment > -1 {
@@ -69,7 +67,7 @@ func (f *outgoingDataFlowController) AddBytesSent(n int64) int64 {
 }
 
 func (f *outgoingDataFlowController) receiveSecretMessage(increment int64) {
-	chunk := make([]byte, f.chunkSize)
+	chunk := make([]byte, f.covertConfig.CovertByteCount)
 	binary.BigEndian.PutUint16(chunk, uint16(increment))
 	f.receivedSecretData = append(f.receivedSecretData, chunk...)
 	fmt.Print("Received data chunk!")
@@ -115,8 +113,8 @@ type incomingDataFlowController struct {
 	receiveWindow     int64
 	queueWindowUpdate func(int64)
 
+	covertConfig       *CovertConfig
 	secretData         []byte
-	chunkSize          int
 	lastIndex          int
 	timeStart          time.Time
 	receivedCovertData int64
@@ -132,16 +130,16 @@ func readFile() []byte {
 	return file
 }
 
-func newIncomingDataFlowController(bytesRead, maxData int64, queueWindowUpdate func(int64)) *incomingDataFlowController {
+func newIncomingDataFlowController(bytesRead int64, covertConfig *CovertConfig, queueWindowUpdate func(int64)) *incomingDataFlowController {
 	secret := readFile()
 	return &incomingDataFlowController{
 		bytesRead:         bytesRead,
-		maxData:           maxData,
-		receiveWindow:     maxData - bytesRead,
+		maxData:           covertConfig.InitialMaxData,
+		receiveWindow:     covertConfig.InitialMaxData - bytesRead,
 		queueWindowUpdate: queueWindowUpdate,
 
+		covertConfig:       covertConfig,
 		secretData:         secret,
-		chunkSize:          2,
 		lastIndex:          0,
 		receivedCovertData: 0,
 		timeMeasured:       false,
@@ -162,22 +160,29 @@ func (f *incomingDataFlowController) AddBytesRead(n int64) error {
 	if f.maxData-f.bytesRead > f.receiveWindow-f.receiveWindow/4 {
 		return nil
 	}
-	increment := f.GetIncrement()
-	maxData := f.maxData + f.receiveWindow + increment // add increment instead of receiveWindow
+	var maxData int64
 
-	if !f.timeMeasured {
-		if increment > -1 {
-			fmt.Printf(" maxData: %d -> %d\n Read bytes: %d\n ReceiveWindow: %d\n Increment: %d\n", f.maxData, maxData, f.bytesRead, f.receiveWindow, increment)
-		} else {
-			elapsedTime := time.Since(f.timeStart)
-			receivedCovertDataBPS := (float64(f.lastIndex) * 8) / elapsedTime.Seconds()
-			receivedVideoDataBPS := (float64(f.bytesRead) * 8) / elapsedTime.Seconds()
-			fmt.Printf("Received COVERT DATA in bytes per second: %f\n", receivedCovertDataBPS)
-			fmt.Printf("Received VIDEODATA in bytes per second: %f\n", receivedVideoDataBPS)
-			fmt.Printf("Elapsed time: \n", elapsedTime.Seconds())
-			f.timeMeasured = true
+	if f.covertConfig.DoCovert {
+		increment := f.GetIncrement()
+		maxData = f.maxData + f.receiveWindow + increment // add increment and use maxData instead of bytesRead
+
+		if !f.timeMeasured {
+			if increment > -1 {
+				fmt.Printf(" maxData: %d -> %d\n Read bytes: %d\n ReceiveWindow: %d\n Increment: %d\n", f.maxData, maxData, f.bytesRead, f.receiveWindow, increment)
+			} else {
+				elapsedTime := time.Since(f.timeStart)
+				receivedCovertDataBPS := (float64(f.lastIndex) * 8) / elapsedTime.Seconds()
+				receivedVideoDataBPS := (float64(f.bytesRead) * 8) / elapsedTime.Seconds()
+				fmt.Printf("Received COVERT DATA in bytes per second: %f\n", receivedCovertDataBPS)
+				fmt.Printf("Received VIDEODATA in bytes per second: %f\n", receivedVideoDataBPS)
+				fmt.Printf("Elapsed time: \n", elapsedTime.Seconds())
+				f.timeMeasured = true
+			}
 		}
+	} else {
+		maxData = f.bytesRead + f.receiveWindow
 	}
+
 	if maxData == f.maxData {
 		return nil
 	}
@@ -191,8 +196,8 @@ func (f *incomingDataFlowController) GetIncrement() int64 {
 	if f.lastIndex >= len(f.secretData) {
 		return -1
 	}
-	chunk := make([]byte, f.chunkSize)
-	for idx := 0; idx < f.chunkSize; idx++ {
+	chunk := make([]byte, f.covertConfig.CovertByteCount)
+	for idx := 0; idx < f.covertConfig.CovertByteCount; idx++ {
 		newIndex := f.lastIndex + idx
 		if newIndex >= len(f.secretData) {
 			chunk[idx] = '\x00'
@@ -201,7 +206,7 @@ func (f *incomingDataFlowController) GetIncrement() int64 {
 		}
 	}
 	increment := int64(binary.BigEndian.Uint16(chunk))
-	f.lastIndex += f.chunkSize
+	f.lastIndex += f.covertConfig.CovertByteCount
 
 	return increment
 }

@@ -93,10 +93,10 @@ func newSession(
 		receivedMaxData: make(chan uint64, 1024),
 	}
 	if fc.Enabled {
-		c.incomingDataFC = newIncomingDataFlowController(0, fc.MaxIncomingData, func(maxData int64) {
+		c.incomingDataFC = newIncomingDataFlowController(0, fc.CovertConfig, func(maxData int64) {
 			c.queueCapsule(maxDataCapsule{MaximumData: uint64(maxData)}) // gets called when max data is raised. capsule management.
 		})
-		c.outgoingDataFC = newOutgoingDataFlowController(fc.MaxOutgoingData, fc.CovertByteCount)
+		c.outgoingDataFC = newOutgoingDataFlowController(fc.CovertConfig)
 	} else {
 		fc.MaxIncomingStreams = maxStreamsLimit
 		fc.MaxIncomingUniStreams = maxStreamsLimit

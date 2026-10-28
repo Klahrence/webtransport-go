@@ -5,6 +5,19 @@ import (
 	"github.com/quic-go/quic-go/quicvarint"
 )
 
+type CovertConfig struct {
+	// Whether we should send data using the WT_MAX_DATA covert channel
+	DoCovert bool
+	//
+	InitialMaxData int64
+	// The size of bytes that are send with one raise of WT_MAX_DATA
+	CovertByteCount int
+	// Should we write WT_MAX_DATA raises into a file
+	RecordToFile bool
+	// If yes, which one?
+	RecordFilename string
+}
+
 // Config contains configuration for a WebTransport client or server.
 type Config struct {
 	// MaxIncomingStreams is the maximum number of concurrent bidirectional streams
@@ -28,8 +41,7 @@ type Config struct {
 	// Values larger than 2^62-1 are clipped to 2^62-1.
 	MaxIncomingData int64
 
-	// The size of bytes that are send with one raise of WT_MAX_DATA
-	CovertByteCount int
+	CovertConfig *CovertConfig
 }
 
 type sessionFlowControl struct {
@@ -41,7 +53,7 @@ type sessionFlowControl struct {
 	MaxOutgoingUniStreams uint64
 	MaxIncomingData       int64
 	MaxOutgoingData       int64
-	CovertByteCount       int
+	CovertConfig          *CovertConfig
 }
 
 func streamLimit(limit int64) uint64 {
@@ -90,6 +102,6 @@ func (c Config) sessionFlowControl(remote *http3.Settings) sessionFlowControl {
 		MaxOutgoingUniStreams: peerSettings[settingsWebTransportInitialMaxStreamsUni],
 		MaxIncomingData:       dataLimit(c.MaxIncomingData),
 		MaxOutgoingData:       int64(peerSettings[settingsWebTransportInitialMaxData]),
-		CovertByteCount:       c.CovertByteCount,
+		CovertConfig:          c.CovertConfig,
 	}
 }
