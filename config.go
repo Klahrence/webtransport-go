@@ -6,16 +6,15 @@ import (
 )
 
 type CovertConfig struct {
-	// Whether we should send data using the WT_MAX_DATA covert channel
-	DoCovert bool
-	//
+	// Use of the WT_MAX_DATA covert channel
+	DoCovert       bool
 	InitialMaxData int64
-	// The size of bytes that are send with one raise of WT_MAX_DATA
+	// The count of bytes that are send with one raise of WT_MAX_DATA (delta)
 	CovertByteCount int
-	// Should we write WT_MAX_DATA raises into a file
-	RecordToFile bool
-	// If yes, which one?
-	RecordFilename string
+	// Write WT_MAX_DATA raises into a file
+	RecordToFile   bool
+	OutputFilePath string
+	ClientBitrate  int64
 }
 
 // Config contains configuration for a WebTransport client or server.

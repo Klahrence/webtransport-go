@@ -2,6 +2,7 @@ package webtransport
 
 import (
 	"encoding/binary"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"log"
@@ -119,6 +120,8 @@ type incomingDataFlowController struct {
 	timeStart          time.Time
 	receivedCovertData int64
 	timeMeasured       bool
+	file               *os.File
+	writer             *csv.Writer
 }
 
 func readFile() []byte {
@@ -132,6 +135,32 @@ func readFile() []byte {
 
 func newIncomingDataFlowController(bytesRead int64, covertConfig *CovertConfig, queueWindowUpdate func(int64)) *incomingDataFlowController {
 	secret := readFile()
+
+	var file *os.File
+	var writer *csv.Writer
+	var err error
+
+	fmt.Printf("covertConfig %v\n", covertConfig)
+
+	if covertConfig.RecordToFile {
+		file, err = os.Create(covertConfig.OutputFilePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		writer = csv.NewWriter(file)
+		err = writer.Write([]string{
+			"Use Covert Channel",
+			"Client bitrate",
+			"Count of bytes per increment",
+			"Initial MaxData",
+			"MaxData",
+			"Delta",
+			"Time (ms)",
+		})
+		writer.Flush()
+
+	}
 	return &incomingDataFlowController{
 		bytesRead:         bytesRead,
 		maxData:           covertConfig.InitialMaxData,
@@ -143,6 +172,8 @@ func newIncomingDataFlowController(bytesRead int64, covertConfig *CovertConfig, 
 		lastIndex:          0,
 		receivedCovertData: 0,
 		timeMeasured:       false,
+		file:               file,
+		writer:             writer,
 	}
 }
 
@@ -175,12 +206,30 @@ func (f *incomingDataFlowController) AddBytesRead(n int64) error {
 				receivedVideoDataBPS := (float64(f.bytesRead) * 8) / elapsedTime.Seconds()
 				fmt.Printf("Received COVERT DATA in bytes per second: %f\n", receivedCovertDataBPS)
 				fmt.Printf("Received VIDEODATA in bytes per second: %f\n", receivedVideoDataBPS)
+				fmt.Printf("Received VIDEODATA in bytes: %d\n", f.bytesRead)
 				fmt.Printf("Elapsed time: \n", elapsedTime.Seconds())
 				f.timeMeasured = true
+				f.file.Close()
+				f.file = nil
+				f.writer = nil
 			}
 		}
 	} else {
 		maxData = f.bytesRead + f.receiveWindow
+	}
+
+	if f.covertConfig.RecordToFile && !f.timeMeasured {
+		fmt.Printf("Print to file....\n")
+		f.writer.Write([]string{
+			fmt.Sprint(f.covertConfig.DoCovert),
+			fmt.Sprint(f.covertConfig.ClientBitrate),
+			fmt.Sprint(f.covertConfig.CovertByteCount),
+			fmt.Sprint(f.covertConfig.InitialMaxData),
+			fmt.Sprint(maxData),
+			fmt.Sprint(maxData - f.maxData),
+			fmt.Sprint(float64(time.Since(f.timeStart)) / float64(time.Millisecond)),
+		})
+		f.writer.Flush()
 	}
 
 	if maxData == f.maxData {
