@@ -9,6 +9,7 @@ type CovertConfig struct {
 	// Use of the WT_MAX_DATA covert channel
 	DoCovert       bool
 	InitialMaxData int64
+	Offset         int64
 	// The count of bytes that are send with one raise of WT_MAX_DATA (delta)
 	CovertByteCount int
 	// Write WT_MAX_DATA raises into a file

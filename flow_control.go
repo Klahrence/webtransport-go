@@ -45,7 +45,7 @@ func (f *outgoingDataFlowController) AddBytesSent(n int64) int64 {
 
 	// detect maxData raises and trigger decode when there is a new value
 	if f.covertConfig.DoCovert && f.maxData > f.previousMaxData {
-		increment := f.maxData - f.previousMaxData - f.covertConfig.InitialMaxData
+		increment := f.maxData - f.previousMaxData - f.covertConfig.Offset
 		msg := fmt.Sprintf("maxData was raised from %d to %d\n increment is %d", f.previousMaxData, f.maxData, increment)
 		f.previousMaxData = f.maxData
 		if increment > -1 {
@@ -195,7 +195,7 @@ func (f *incomingDataFlowController) AddBytesRead(n int64) error {
 
 	if f.covertConfig.DoCovert {
 		increment := f.GetIncrement()
-		maxData = f.maxData + f.receiveWindow + increment // add increment and use maxData instead of bytesRead
+		maxData = f.maxData + f.covertConfig.Offset + increment // add increment and use maxData instead of bytesRead
 
 		if !f.timeMeasured {
 			if increment > -1 {
