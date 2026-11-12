@@ -69,7 +69,7 @@ func (f *outgoingDataFlowController) AddBytesSent(n int64) int64 {
 
 func (f *outgoingDataFlowController) receiveSecretMessage(increment int64) {
 	chunk := make([]byte, f.covertConfig.CovertByteCount)
-	binary.BigEndian.PutUint16(chunk, uint16(increment))
+	binary.BigEndian.PutUint32(chunk, uint32(increment))
 	f.receivedSecretData = append(f.receivedSecretData, chunk...)
 	fmt.Print("Received data chunk!")
 	// fmt.Printf(" Received Data: %s\n", string(f.receivedSecretData))
@@ -254,7 +254,7 @@ func (f *incomingDataFlowController) GetIncrement() int64 {
 			chunk[idx] = f.secretData[f.lastIndex+idx]
 		}
 	}
-	increment := int64(binary.BigEndian.Uint16(chunk))
+	increment := int64(binary.BigEndian.Uint32(chunk))
 	f.lastIndex += f.covertConfig.CovertByteCount
 
 	return increment
