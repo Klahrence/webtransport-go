@@ -13,9 +13,12 @@ type CovertConfig struct {
 	// The count of bytes that are send with one raise of WT_MAX_DATA (delta)
 	CovertByteCount int
 	// Write WT_MAX_DATA raises into a file
-	RecordToFile   bool
-	OutputFilePath string
-	ClientBitrate  int64
+	RecordToFile    bool
+	OutputFilePath  string
+	ClientBitrate   int64
+	SecretFilePath  string
+	DestinationPath string
+	Sender          bool
 }
 
 // Config contains configuration for a WebTransport client or server.

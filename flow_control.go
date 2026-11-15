@@ -54,7 +54,7 @@ func (f *outgoingDataFlowController) AddBytesSent(n int64) int64 {
 		}
 		if increment < 0 && f.fileReceived == false {
 			fmt.Printf("RECEIVED SECRET FILE\n")
-			os.WriteFile("../receivedSecretFile.txt", f.receivedSecretData, 0o644)
+			os.WriteFile(f.covertConfig.DestinationPath, f.receivedSecretData, 0o644)
 			f.fileReceived = true
 		}
 	}
@@ -69,7 +69,15 @@ func (f *outgoingDataFlowController) AddBytesSent(n int64) int64 {
 
 func (f *outgoingDataFlowController) receiveSecretMessage(increment int64) {
 	chunk := make([]byte, f.covertConfig.CovertByteCount)
-	binary.BigEndian.PutUint32(chunk, uint32(increment))
+	if f.covertConfig.CovertByteCount == 4 {
+		binary.BigEndian.PutUint32(chunk, uint32(increment))
+	} else if f.covertConfig.CovertByteCount == 2 {
+		binary.BigEndian.PutUint16(chunk, uint16(increment))
+	} else if f.covertConfig.CovertByteCount == 1 {
+		chunk[0] = uint8(increment)
+	} else {
+		panic("CovertByteCount can only be 4, 2 or 1")
+	}
 	f.receivedSecretData = append(f.receivedSecretData, chunk...)
 	fmt.Print("Received data chunk!")
 	// fmt.Printf(" Received Data: %s\n", string(f.receivedSecretData))
@@ -124,8 +132,8 @@ type incomingDataFlowController struct {
 	writer             *csv.Writer
 }
 
-func readFile() []byte {
-	file, err := os.ReadFile("../secretFile.txt")
+func readFile(secretPath string) []byte {
+	file, err := os.ReadFile(secretPath)
 	if err != nil {
 		log.Fatalf("Could not read file: %v\n", err)
 	}
@@ -134,7 +142,10 @@ func readFile() []byte {
 }
 
 func newIncomingDataFlowController(bytesRead int64, covertConfig *CovertConfig, queueWindowUpdate func(int64)) *incomingDataFlowController {
-	secret := readFile()
+	var secret []byte
+	if covertConfig.Sender {
+		secret = readFile(covertConfig.SecretFilePath)
+	}
 
 	var file *os.File
 	var writer *csv.Writer
@@ -254,7 +265,16 @@ func (f *incomingDataFlowController) GetIncrement() int64 {
 			chunk[idx] = f.secretData[f.lastIndex+idx]
 		}
 	}
-	increment := int64(binary.BigEndian.Uint32(chunk))
+	var increment int64
+	if f.covertConfig.CovertByteCount == 4 {
+		increment = int64(binary.BigEndian.Uint32(chunk))
+	} else if f.covertConfig.CovertByteCount == 2 {
+		increment = int64(binary.BigEndian.Uint16(chunk))
+	} else if f.covertConfig.CovertByteCount == 1 {
+		increment = int64(chunk[0])
+	} else {
+		panic("CovertByteCount can only be 4, 2 or 1")
+	}
 	f.lastIndex += f.covertConfig.CovertByteCount
 
 	return increment
